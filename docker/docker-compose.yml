@@ -1,0 +1,9 @@
+services:
+  mpl-mpc:
+    build: .
+    container_name: mpl-mpc
+    volumes:
+      - ..:/cc   # 挂载cc目录
+    working_dir: /cc
+    tty: true
+    stdin_open: true
