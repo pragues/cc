@@ -3,7 +3,8 @@ services:
     build: .
     container_name: mpl-mpc
     volumes:
-      - ..:/cc   # 挂载cc目录
+      - ..:/cc
+      - ../../../PycharmProjects/colpali:/colpali
     working_dir: /cc
     tty: true
     stdin_open: true

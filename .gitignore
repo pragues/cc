@@ -1,0 +1,6 @@
+cmake-build-debug
+comparison
+build
+mpl_new/dataset_obstacle/*
+mpl_new/plots/*
+.*
