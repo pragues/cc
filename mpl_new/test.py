@@ -141,10 +141,10 @@ if close_set.size > 0:
 ax.scatter(start.pos[0], start.pos[1], c='red', s=50, label='start')
 ax.scatter(goal.pos[0], goal.pos[1], c='cyan', s=50, label='goal')
 
-# # 绘制轨迹
-if valid:
-    traj = np.array(planner.getTraj())
-    ax.plot(traj[:, 0], traj[:, 1], c='blue', linewidth=2, label='trajectory')
+# # # 绘制轨迹
+# if valid:
+#     traj = np.array(planner.getTraj())
+#     ax.plot(traj[:, 0], traj[:, 1], c='blue', linewidth=2, label='trajectory')
 
 ax.legend()
 ax.set_title("MPL Planner Result")

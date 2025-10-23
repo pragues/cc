@@ -136,6 +136,35 @@ static vec_E<VecDf> parse_U(py::iterable seq) {
 }
 
 
+// --- C++11-compatible traj_to_ndarray using Trajectory::getWaypoints() ---
+template <int D, typename TrajT>
+static py::array_t<decimal_t> traj_to_ndarray(const TrajT &traj) {
+    // Use Trajectory::getWaypoints() which returns vec_E<Waypoint<Dim>>
+    // This is safe and portable under C++11.
+    vec_E<Waypoint<D>> wps = traj.getWaypoints(); // copy of waypoints
+    size_t n = wps.size();
+
+    // build numpy shape and allocate
+    std::vector<ssize_t> shape;
+    shape.push_back(static_cast<ssize_t>(n));
+    shape.push_back(static_cast<ssize_t>(D));
+    py::array_t<decimal_t> arr(shape);
+
+    if (n == 0) return arr; // empty (0, D) array
+
+    decimal_t *buf = arr.mutable_data();
+
+    for (size_t i = 0; i < n; ++i) {
+        const Waypoint<D> &wp = wps[i];
+        for (int j = 0; j < D; ++j) {
+            buf[i * D + j] = static_cast<decimal_t>(wp.pos(j));
+        }
+    }
+    return arr;
+}
+ 
+
+
 PYBIND11_MODULE(map_planner_py, m) {
     m.doc() = "Python bindings for Motion Primitive Library (MPL)";
 
@@ -288,19 +317,14 @@ PYBIND11_MODULE(map_planner_py, m) {
         .def("set_dt", &MapPlanner<2>::setDt)
         .def("set_u", [](MapPlanner<2> &self, py::iterable seq) { self.setU(parse_U<2>(seq)); })
         .def("plan", &MapPlanner<2>::plan)
-        // .def("get_traj", [](MapPlanner<2> &self) {
-        //     const auto &traj = self.getTraj();
-        //     size_t n = traj.length();               // Trajectory 自身方法
-        //     py::array_t<decimal_t> arr(n * 2);      // 先申请一维连续内存
-        //     auto buf = arr.mutable_data();
-        //     for (size_t i = 0; i < n; ++i) {
-        //         const auto &wp = traj.at(i);       // 用 at() 或 getWaypoint()
-        //         buf[i*2 + 0] = wp.pos(0);
-        //         buf[i*2 + 1] = wp.pos(1);
-        //     }
-        //     arr.resize({n, 2});                     // reshape 成二维
-        //     return arr;
-        // })
+        .def("get_traj", [](MapPlanner<2> &self) {
+            try {
+                const auto traj = self.getTraj(); // make a (by-value) copy of internal trajectory
+                return traj_to_ndarray<2>(traj);
+            } catch (const std::exception &e) {
+                throw py::value_error(std::string("get_traj failed: ") + e.what());
+            }
+        })
         .def("get_close_set", &MapPlanner<2>::getCloseSet)
         // camelCase aliases (same underlying C++ methods)
         .def("setMapUtil", &MapPlanner<2>::setMapUtil)
@@ -308,18 +332,14 @@ PYBIND11_MODULE(map_planner_py, m) {
         .def("setAmax", &MapPlanner<2>::setAmax)
         .def("setDt", &MapPlanner<2>::setDt)
         .def("setU", [](MapPlanner<2> &self, py::iterable seq) { self.setU(parse_U<2>(seq)); })
-        // .def("getTraj", [](MapPlanner<2> &self) {
-        //     const auto &traj = self.getTraj();
-        //     size_t n = traj.size();
-        //     py::array_t<decimal_t> arr({n, 2});
-        //     auto buf = arr.mutable_data();
-        //     for (size_t i = 0; i < n; ++i) {
-        //         const auto &wp = traj[i];
-        //         buf[i * 2 + 0] = wp.pos(0);
-        //         buf[i * 2 + 1] = wp.pos(1);
-        //     }
-        //     return arr;
-        // })
+        .def("getTraj", [](MapPlanner<2> &self) {
+            try {
+                const auto traj = self.getTraj();
+                return traj_to_ndarray<2>(traj);
+            } catch (const std::exception &e) {
+                throw py::value_error(std::string("getTraj failed: ") + e.what());
+            }
+        })
         .def("getCloseSet", &MapPlanner<2>::getCloseSet);
 
 
@@ -334,19 +354,14 @@ PYBIND11_MODULE(map_planner_py, m) {
         .def("set_dt", &MapPlanner<3>::setDt)
         .def("set_u", [](MapPlanner<3> &self, py::iterable seq) { self.setU(parse_U<3>(seq)); })
         .def("plan", &MapPlanner<3>::plan)
-        // .def("get_traj", [](MapPlanner<3> &self) {
-        //     const auto &traj = self.getTraj();
-        //     size_t n = traj.size();
-        //     py::array_t<decimal_t> arr({n, 3});
-        //     auto buf = arr.mutable_data();
-        //     for (size_t i = 0; i < n; ++i) {
-        //         const auto &wp = traj[i];
-        //         buf[i * 3 + 0] = wp.pos(0);
-        //         buf[i * 3 + 1] = wp.pos(1);
-        //         buf[i * 3 + 2] = wp.pos(2);
-        //     }
-        //     return arr;
-        // })
+        .def("get_traj", [](MapPlanner<3> &self) {
+            try {
+                const auto traj = self.getTraj();
+                return traj_to_ndarray<3>(traj);
+            } catch (const std::exception &e) {
+                throw py::value_error(std::string("get_traj failed: ") + e.what());
+            }
+        })
         .def("get_close_set", &MapPlanner<3>::getCloseSet)
         // camelCase aliases
         .def("setMapUtil", &MapPlanner<3>::setMapUtil)
@@ -354,53 +369,18 @@ PYBIND11_MODULE(map_planner_py, m) {
         .def("setAmax", &MapPlanner<3>::setAmax)
         .def("setDt", &MapPlanner<3>::setDt)
         .def("setU", [](MapPlanner<3> &self, py::iterable seq) { self.setU(parse_U<3>(seq)); })
-        // .def("getTraj", [](MapPlanner<3> &self) {
-        //     const auto &traj = self.getTraj();
-        //     size_t n = traj.size();
-        //     py::array_t<decimal_t> arr({n, 3});
-        //     auto buf = arr.mutable_data();
-        //     for (size_t i = 0; i < n; ++i) {
-        //         const auto &wp = traj[i];
-        //         buf[i * 3 + 0] = wp.pos(0);
-        //         buf[i * 3 + 1] = wp.pos(1);
-        //         buf[i * 3 + 2] = wp.pos(2);
-        //     }
-        //     return arr;
-        // })
-        
+        .def("getTraj", [](MapPlanner<3> &self) {
+            try {
+                const auto traj = self.getTraj();
+                return traj_to_ndarray<3>(traj);
+            } catch (const std::exception &e) {
+                throw py::value_error(std::string("getTraj failed: ") + e.what());
+            }
+        })
         .def("getCloseSet", &MapPlanner<3>::getCloseSet);
 
     m.attr("OccMapPlanner") = m.attr("MapPlanner2D");
     m.attr("VoxelMapPlanner") = m.attr("MapPlanner3D");
 
-    // // --- OccMapPlanner / VoxelMapPlanner aliases (camelCase) ---
-    // // Provide Python-friendly aliases that match the original C++-style camelCase
-    // py::class_<MapPlanner<2>, std::shared_ptr<MapPlanner<2>>>(m, "OccMapPlanner")
-    //     .def(py::init<bool>(), py::arg("verbose") = false)
-    //     // camelCase aliases used in existing python scripts
-    //     .def("setMapUtil", &MapPlanner<2>::setMapUtil)
-    //     .def("setVmax", &MapPlanner<2>::setVmax)
-    //     .def("setAmax", &MapPlanner<2>::setAmax)
-    //     .def("setDt", &MapPlanner<2>::setDt)
-    //     .def("setU",
-    //     [](MapPlanner<2> &self, py::iterable seq) { self.setU(parse_U<2>(seq)); })
-    //     .def("plan", &MapPlanner<2>::plan)
-    //     .def("getTraj", &MapPlanner<2>::getTraj)
-    //     .def("getCloseSet", &MapPlanner<2>::getCloseSet);
-
-
-    // py::class_<MapPlanner<3>, std::shared_ptr<MapPlanner<3>>>(m, "VoxelMapPlanner")
-    //     .def(py::init<bool>(), py::arg("verbose") = false)
-    //     .def("setMapUtil", &MapPlanner<3>::setMapUtil)
-    //     .def("setVmax", &MapPlanner<3>::setVmax)
-    //     .def("setAmax", &MapPlanner<3>::setAmax)
-    //     .def("setDt", &MapPlanner<3>::setDt)
-    //     .def("setU",
-    //     [](MapPlanner<3> &self, py::iterable seq) { self.setU(parse_U<3>(seq)); })
-    //     .def("plan", &MapPlanner<3>::plan)
-    //     .def("getTraj", &MapPlanner<3>::getTraj)
-    //     .def("getCloseSet", &MapPlanner<3>::getCloseSet);
-
     m.attr("__version__") = "1.0.0";
 }
-
