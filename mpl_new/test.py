@@ -27,7 +27,7 @@ data = {list(d.keys())[0]: list(d.values())[0] for d in yaml_list}
 
 start_pos = data["start"]  # e.g., [x, y]
 goal_pos = data["goal"]    # e.g., [x, y]
-map_origin = np.array(data["origin"], dtype=np.float64)
+map_origin = np.array(data["origin"], dtype=np.float32)
 map_dim = np.array(data["dim"], dtype=np.int32)
 map_data = np.asarray(data["data"], dtype=np.int8).ravel()  #转 list，符合 pybind11 接口
 map_res = float(data["resolution"])
@@ -53,9 +53,11 @@ print("Map set.")
 #     print("Error in setting map:", e)
 #     exit(1)
 
-start = mpl.Waypoint2D()
+print(f"{YELLOW} resolution: {RESET} {map_res}")
 
 try:
+    # start_pos_scaled = start_pos / map_res
+    start = mpl.Waypoint2D()
     start.pos = start_pos
 except Exception as e:
     print(f"exception: {e}")
@@ -82,7 +84,7 @@ goal.use_acc = False
 goal.use_jrk = False
 goal.use_yaw = False
 
-print(f"{YELLOW}waypoint 2d allset{RESET}")
+print(f"{YELLOW}Waypoint 2d allset{RESET}")
 
 # === 控制输入 ===
 amax = 2.0
@@ -123,9 +125,16 @@ print(f"{YELLOW}Expanded states{RESET}: {len(planner.getCloseSet())}")
 # # === Matplotlib 绘图 ===
 fig, ax = plt.subplots()
 ax.set_aspect('equal')
-ax.set_xlim(0, map_dim[0])
-ax.set_ylim(0, map_dim[1])
-ax.invert_yaxis()  # 保持和 OpenCV 坐标系一致
+# ax.set_xlim(0, map_dim[0])
+# ax.set_ylim(0, map_dim[1])
+# ax.invert_yaxis()
+x_min = map_origin[0]
+x_max = map_origin[0] + map_dim[0] * map_res
+y_min = map_origin[1]
+y_max = map_origin[1] + map_dim[1] * map_res
+
+ax.set_xlim(x_min, x_max)
+ax.set_ylim(y_min, y_max)
 
 # # 绘制障碍物
 cloud = np.array(map_util.getCloud())
@@ -136,15 +145,17 @@ if cloud.size > 0:
 close_set = np.array(planner.getCloseSet())
 if close_set.size > 0:
     ax.scatter(close_set[:, 0], close_set[:, 1], c='gray', s=10, label='expanded')
+print(f"{YELLOW}closed set:{RESET} {close_set}")
+
 
 # # 绘制起点和终点
 ax.scatter(start.pos[0], start.pos[1], c='red', s=50, label='start')
 ax.scatter(goal.pos[0], goal.pos[1], c='cyan', s=50, label='goal')
 
-# # # 绘制轨迹
-# if valid:
-#     traj = np.array(planner.getTraj())
-#     ax.plot(traj[:, 0], traj[:, 1], c='blue', linewidth=2, label='trajectory')
+# # 绘制轨迹
+if valid:
+    traj = np.array(planner.getTraj())
+    ax.plot(traj[:, 0], traj[:, 1], c='blue', linewidth=2, label='trajectory')
 
 ax.legend()
 ax.set_title("MPL Planner Result")
@@ -153,4 +164,5 @@ plt.savefig(output_path)
 print(f"Saved results to {output_path}")
 plt.show()
 
-# print("Saved results to test_planner_2d_result_matplotlib.jpg")
+print(f"{YELLOW}Saved results to test_planner_2d_result_matplotlib.jpg{RESET}")
+
